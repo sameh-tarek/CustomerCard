@@ -1,0 +1,57 @@
+package MDB;
+
+import java.io.Serializable;
+import javax.ejb.Stateless;
+import javax.jms.*;
+import javax.naming.InitialContext;
+import javax.naming.NamingException;
+
+@Stateless
+public class JMSMessageSender implements MessageSender {
+
+    private QueueConnectionFactory qcf;
+    private Queue requestQueue;
+
+    public JMSMessageSender() {
+        try {
+            InitialContext ctx = new InitialContext();
+            qcf = (QueueConnectionFactory) ctx.lookup("jms/QueueConnectionFactory");
+            requestQueue = (Queue) ctx.lookup("jms/RequestQueue");
+        } catch (NamingException e) {
+            throw new RuntimeException("Failed to initialize JMS resources", e);
+        }
+    }
+
+    @Override
+    public void sendRequest(Object request, String operationType) {
+        QueueConnection qc = null;
+        QueueSession qs = null;
+        QueueSender sender = null;
+
+        try {
+            qc = qcf.createQueueConnection();
+            qs = qc.createQueueSession(false, Session.AUTO_ACKNOWLEDGE);
+            sender = qs.createSender(requestQueue);
+
+            ObjectMessage message = qs.createObjectMessage((Serializable) request);
+            message.setStringProperty("operationType", operationType); 
+
+            sender.send(message);
+        } catch (JMSException e) {
+            System.err.println("Failed to send JMS message: " + e.getMessage());
+            throw new RuntimeException("Failed to send JMS message", e);
+        } finally {
+            closeResources(sender, qs, qc);
+        }
+    }
+
+    private void closeResources(QueueSender sender, QueueSession qs, QueueConnection qc) {
+        try {
+            if (sender != null) sender.close();
+            if (qs != null) qs.close();
+            if (qc != null) qc.close();
+        } catch (JMSException e) {
+            System.err.println("Error while closing JMS resources: " + e.getMessage());
+        }
+    }
+}

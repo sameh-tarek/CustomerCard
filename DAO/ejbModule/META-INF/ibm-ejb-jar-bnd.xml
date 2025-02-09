@@ -1,0 +1,5 @@
+<ejb-jar-bnd xmlns="http://websphere.ibm.com/xml/ns/javaee">
+<message-driven name="CustomerCardMDB">
+<jca-adapter activation-spec-binding-name="jms/CustomerCardMDBActivationSpec" />
+</message-driven>
+</ejb-jar-bnd>

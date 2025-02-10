@@ -3,6 +3,8 @@ package MDB;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import javax.ejb.ActivationConfigProperty;
 import javax.ejb.EJB;
@@ -14,6 +16,7 @@ import dao.CustomerCardDAO;
 import dtos.CustomerCardRequestDTO;
 import dtos.CustomerCardResponseDTO;
 import entities.CustomerCard;
+import enums.OperationType;
 import mapper.CustomerCardMapper;
 
 @MessageDriven(
@@ -24,6 +27,8 @@ import mapper.CustomerCardMapper;
     }
 )
 public class CustomerCardMDB implements MessageListener {
+    
+    private static final Logger logger = Logger.getLogger(CustomerCardMDB.class.getName());
 
     @EJB
     private CustomerCardDAO customerCardDAO;
@@ -34,9 +39,11 @@ public class CustomerCardMDB implements MessageListener {
             if (message instanceof ObjectMessage) {
                 ObjectMessage objectMessage = (ObjectMessage) message;
                 String operationType = message.getStringProperty("operationType"); 
+                String correlationId = message.getJMSCorrelationID();
                 CustomerCardRequestDTO request = (CustomerCardRequestDTO) objectMessage.getObject();
+                logger.info("Received message with operation: " + operationType);
                 Object response = processRequest(operationType, request);
-                sendResponse(response);
+                sendResponse(response, correlationId);
             }
         } catch (JMSException e) {
             logError("JMS Exception during message processing", e);
@@ -47,16 +54,24 @@ public class CustomerCardMDB implements MessageListener {
 
     private Object processRequest(String operationType, CustomerCardRequestDTO request) {
         try {
-            switch (operationType) {
-                case "create":
+            OperationType opType;
+            try {
+                opType = OperationType.valueOf(operationType);
+            } catch (IllegalArgumentException e) {
+                logger.warning("Invalid operation type received: " + operationType);
+                return "Invalid operation type: " + operationType;
+            }
+
+            switch (opType) {
+                case CREATE:
                     return createCustomerCard(request);
-                case "update":
+                case UPDATE:
                     return updateCustomerCard(request);
-                case "delete":
+                case DELETE:
                     return deleteCustomerCard(request);
-                case "getByCardNumber":
+                case GET_BY_CARD_NUMBER:
                     return getCustomerByCardNumber(request);
-                case "getAll":
+                case GET_ALL:
                     return getAllCustomers();
                 default:
                     return "Unknown operation";
@@ -69,8 +84,16 @@ public class CustomerCardMDB implements MessageListener {
 
     private String createCustomerCard(CustomerCardRequestDTO request) {
         try {
+            logger.info("Attempting to create a new customer card...");
+            CustomerCard existingCustomer = customerCardDAO.findByCardNumber(request.getCardNumber());
+            if (existingCustomer != null) {
+                logger.warning("Customer with card number already exists: " + request.getCardNumber());
+                return "Customer already exists!";
+            }
+            
             CustomerCard customerCard = CustomerCardMapper.toEntity(request);
             customerCardDAO.create(customerCard);
+            logger.info("Customer added successfully: " + request.getCardNumber());
             return "Customer added successfully";
         } catch (Exception e) {
             logError("Error adding customer to database", e);
@@ -80,13 +103,16 @@ public class CustomerCardMDB implements MessageListener {
 
     private String updateCustomerCard(CustomerCardRequestDTO request) {
         try {
+            logger.info("Attempting to update customer card: " + request.getCardNumber());
             CustomerCard customerCard = customerCardDAO.findByCardNumber(request.getCardNumber());
             if (customerCard == null) {
+                logger.warning("Customer card not found: " + request.getCardNumber());
                 return "Customer card not found";
             }
 
             customerCard.setCustomerName(request.getCustomerName());
             customerCardDAO.update(customerCard, request.getCardNumber());
+            logger.info("Customer updated successfully: " + request.getCardNumber());
             return "Customer updated successfully";
         } catch (Exception e) {
             logError("Error updating customer in database", e);
@@ -96,22 +122,27 @@ public class CustomerCardMDB implements MessageListener {
 
     private String deleteCustomerCard(CustomerCardRequestDTO request) {
         try {
+            logger.info("Attempting to delete customer card: " + request.getCardNumber());
             CustomerCard existingCard = customerCardDAO.findByCardNumber(request.getCardNumber());
             if (existingCard == null) {
+                logger.warning("Customer card not found: " + request.getCardNumber());
                 return "Customer card not found";
             }
             customerCardDAO.delete(request.getCardNumber());
+            logger.info("Customer card deleted successfully: " + request.getCardNumber());
             return "SUCCESS";
         } catch (Exception e) {
             logError("Error deleting customer from database", e);
             return "ERROR";
         }
     }
-
+    
     private CustomerCardResponseDTO getCustomerByCardNumber(CustomerCardRequestDTO request) {
         try {
+            logger.info("Fetching customer by card number: " + request.getCardNumber());
             CustomerCard customerCard = customerCardDAO.findByCardNumber(request.getCardNumber());
             if (customerCard == null) {
+                logger.warning("Customer card not found for number: " + request.getCardNumber());
                 return null;
             }
             return CustomerCardMapper.toDTO(customerCard);
@@ -121,12 +152,16 @@ public class CustomerCardMDB implements MessageListener {
         }
     }
 
+
     private List<CustomerCardResponseDTO> getAllCustomers() {
+        logger.info("Fetching all customer cards...");
         try {
             List<CustomerCard> customers = customerCardDAO.findAll();
             if (customers == null || customers.isEmpty()) {
+                logger.warning("No customer records found.");
                 return new ArrayList<>();
             }
+            logger.info("Successfully fetched " + customers.size() + " customer records.");
             return customers.stream()
                     .map(CustomerCardMapper::toDTO)
                     .collect(Collectors.toList());
@@ -136,7 +171,7 @@ public class CustomerCardMDB implements MessageListener {
         }
     }
 
-    private void sendResponse(Object response) {
+    private void sendResponse(Object response, String correlationId) {
         try {
             InitialContext ctx = new InitialContext();
             QueueConnectionFactory qcf = (QueueConnectionFactory) ctx.lookup("jms/QueueConnectionFactory");
@@ -145,17 +180,18 @@ public class CustomerCardMDB implements MessageListener {
             QueueSession qs = qc.createQueueSession(false, QueueSession.AUTO_ACKNOWLEDGE);
             QueueSender sender = qs.createSender(responseQueue);
             ObjectMessage message = qs.createObjectMessage((Serializable) response);
+            message.setJMSCorrelationID(correlationId);
             sender.send(message);
             sender.close();
             qs.close();
             qc.close();
+            logger.info("Response sent successfully with correlation ID: " + correlationId);
         } catch (NamingException | JMSException e) {
             logError("Error sending response", e);
         }
     }
 
     private void logError(String message, Exception e) {
-        System.err.println(message);
-        e.printStackTrace();
+        logger.log(Level.SEVERE, message, e);
     }
 }

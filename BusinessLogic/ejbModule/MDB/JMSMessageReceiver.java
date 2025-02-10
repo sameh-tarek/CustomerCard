@@ -29,7 +29,7 @@ public class JMSMessageReceiver implements MessageReceiver {
     }
 
     @Override
-    public Object receiveResponse() {
+    public Object receiveResponse(String correlationId) {
         QueueConnection qc = null;
         QueueSession qs = null;
         QueueReceiver receiver = null;
@@ -37,10 +37,16 @@ public class JMSMessageReceiver implements MessageReceiver {
         try {
             qc = qcf.createQueueConnection();
             qs = qc.createQueueSession(false, QueueSession.AUTO_ACKNOWLEDGE);
-            receiver = qs.createReceiver(responseQueue);
+            receiver = qs.createReceiver(responseQueue, "JMSCorrelationID = '" + correlationId + "'");
 
-            qc.start(); 
+            qc.start();
             Message message = receiver.receive(5000); // Wait for 5 seconds
+
+            if (message == null) {
+                System.err.println("No response received within timeout period for correlationId: " + correlationId);
+                return null;
+            }
+
             if (message instanceof ObjectMessage) {
                 return ((ObjectMessage) message).getObject();
             }
@@ -53,6 +59,7 @@ public class JMSMessageReceiver implements MessageReceiver {
             closeResources(receiver, qs, qc);
         }
     }
+
 
     private void closeResources(QueueReceiver receiver, QueueSession qs, QueueConnection qc) {
         try {

@@ -6,26 +6,26 @@ import javax.ejb.ApplicationException;
 import javax.ws.rs.core.Response;
 
 @ApplicationException(rollback = true)
-public class CustomerCardException extends RuntimeException implements Serializable{
+public class CardNotFoundException extends RuntimeException implements Serializable{
     private static final long serialVersionUID = 1L;
     private final int statusCode;
 
-    public CustomerCardException(String message) {
+    public CardNotFoundException(String message) {
         super(message);
-        this.statusCode = Response.Status.INTERNAL_SERVER_ERROR.getStatusCode();
+        this.statusCode = Response.Status.NOT_FOUND.getStatusCode();
     }
 
-    public CustomerCardException(String message, Throwable cause) {
+    public CardNotFoundException(String message, Throwable cause) {
         super(message, cause);
-        this.statusCode = Response.Status.INTERNAL_SERVER_ERROR.getStatusCode();
+        this.statusCode = Response.Status.NOT_FOUND.getStatusCode();
     }
 
-    public CustomerCardException(String message, int statusCode) {
+    public CardNotFoundException(String message, int statusCode) {
         super(message);
         this.statusCode = statusCode;
     }
 
-    public CustomerCardException(String message, Throwable cause, int statusCode) {
+    public CardNotFoundException(String message, Throwable cause, int statusCode) {
         super(message, cause);
         this.statusCode = statusCode;
     }

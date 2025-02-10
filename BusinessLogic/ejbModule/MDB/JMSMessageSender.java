@@ -6,6 +6,8 @@ import javax.jms.*;
 import javax.naming.InitialContext;
 import javax.naming.NamingException;
 
+import enums.OperationType;
+
 @Stateless
 public class JMSMessageSender implements MessageSender {
 
@@ -23,18 +25,21 @@ public class JMSMessageSender implements MessageSender {
     }
 
     @Override
-    public void sendRequest(Object request, String operationType) {
+    public void sendRequest(Object request, OperationType operationType, String correlationId) {
         QueueConnection qc = null;
         QueueSession qs = null;
         QueueSender sender = null;
 
         try {
             qc = qcf.createQueueConnection();
-            qs = qc.createQueueSession(false, Session.AUTO_ACKNOWLEDGE);
+            qs = qc.createQueueSession(false, Session.AUTO_ACKNOWLEDGE); 
             sender = qs.createSender(requestQueue);
 
             ObjectMessage message = qs.createObjectMessage((Serializable) request);
-            message.setStringProperty("operationType", operationType); 
+            message.setStringProperty("operationType", operationType.name());
+
+            
+            message.setJMSCorrelationID(correlationId);
 
             sender.send(message);
         } catch (JMSException e) {

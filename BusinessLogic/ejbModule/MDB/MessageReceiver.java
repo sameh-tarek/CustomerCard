@@ -1,5 +1,5 @@
 package MDB;
 
 public interface MessageReceiver {
-    Object receiveResponse();
+    Object receiveResponse(String correlationId);
 }

@@ -67,7 +67,7 @@ public class CustomerCardController {
                                        @PathParam("cardNumber") String cardNumber) {
         try {
             String result = customerCardService.updateCustomerCard(request, cardNumber);
-            return Response.ok(result).build();
+            return Response.status(Response.Status.ACCEPTED).entity(result).build();
         } catch (Exception e) {
             throw new ServiceException("Error updating customer card with number: " + cardNumber, e);
         }

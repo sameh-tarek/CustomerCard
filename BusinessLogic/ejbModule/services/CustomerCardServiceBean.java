@@ -22,6 +22,7 @@ import exceptions.CardNotFoundException;
 import sevices.CustomerCardServiceRemote;
 import validators.CustomerCardValidator;
 
+@TransactionAttribute(TransactionAttributeType.NOT_SUPPORTED)
 @Stateless
 public class CustomerCardServiceBean implements CustomerCardServiceRemote {
     
@@ -37,7 +38,6 @@ public class CustomerCardServiceBean implements CustomerCardServiceRemote {
         logger.info("CustomerCardServiceBean initialized with messageType: " + messageType);
     }
 
-    @TransactionAttribute(TransactionAttributeType.NOT_SUPPORTED)
     @Override
     public List<CustomerCardResponseDTO> getAllCustomersCards() {
         String correlationId = UUID.randomUUID().toString();
@@ -56,7 +56,6 @@ public class CustomerCardServiceBean implements CustomerCardServiceRemote {
         }
     }
 
-    @TransactionAttribute(TransactionAttributeType.NOT_SUPPORTED)
     @Override
     public CustomerCardResponseDTO getCustomerByCardNumber(String cardNumber) {
         String correlationId = UUID.randomUUID().toString();
@@ -83,7 +82,6 @@ public class CustomerCardServiceBean implements CustomerCardServiceRemote {
         }
     }
 
-    @TransactionAttribute(TransactionAttributeType.NOT_SUPPORTED)
     @Override
     public String addNewCustomerCard(CustomerCardRequestDTO request) {
         String correlationId = UUID.randomUUID().toString();
@@ -102,7 +100,6 @@ public class CustomerCardServiceBean implements CustomerCardServiceRemote {
         }
     }
 
-    @TransactionAttribute(TransactionAttributeType.NOT_SUPPORTED)
     @Override
     public String updateCustomerCard(CustomerCardRequestDTO request, String cardNumber) {
         String correlationId = UUID.randomUUID().toString();
@@ -123,7 +120,6 @@ public class CustomerCardServiceBean implements CustomerCardServiceRemote {
         }
     }
 
-    @TransactionAttribute(TransactionAttributeType.NOT_SUPPORTED)
     @Override
     public String deleteCustomerCard(String cardNumber) {
         String correlationId = UUID.randomUUID().toString();

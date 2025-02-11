@@ -14,6 +14,10 @@ public class JMSMessageSender implements MessageSender {
     private QueueConnectionFactory qcf;
     private Queue requestQueue;
 
+    private QueueConnection qc;
+    private QueueSession qs;
+    private QueueSender sender;
+
     public JMSMessageSender() {
         try {
             InitialContext ctx = new InitialContext();
@@ -26,31 +30,24 @@ public class JMSMessageSender implements MessageSender {
 
     @Override
     public void sendRequest(Object request, OperationType operationType, String correlationId) {
-        QueueConnection qc = null;
-        QueueSession qs = null;
-        QueueSender sender = null;
-
         try {
             qc = qcf.createQueueConnection();
-            qs = qc.createQueueSession(false, Session.AUTO_ACKNOWLEDGE); 
+            qs = qc.createQueueSession(false, Session.AUTO_ACKNOWLEDGE);
             sender = qs.createSender(requestQueue);
 
             ObjectMessage message = qs.createObjectMessage((Serializable) request);
             message.setStringProperty("operationType", operationType.name());
-
-            
             message.setJMSCorrelationID(correlationId);
 
             sender.send(message);
         } catch (JMSException e) {
             System.err.println("Failed to send JMS message: " + e.getMessage());
             throw new RuntimeException("Failed to send JMS message", e);
-        } finally {
-            closeResources(sender, qs, qc);
         }
     }
 
-    private void closeResources(QueueSender sender, QueueSession qs, QueueConnection qc) {
+    @Override
+    public void close() {
         try {
             if (sender != null) sender.close();
             if (qs != null) qs.close();

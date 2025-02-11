@@ -32,6 +32,9 @@ public class CustomerCard implements Serializable {
     
     @Column(name = "gender", length = 10)
     private String gender;
+    
+    @Column(name = "deleted", nullable = false)
+    private boolean deleted = false;
 
     public CustomerCard() {}
 
@@ -71,6 +74,9 @@ public class CustomerCard implements Serializable {
 
     public String getGender() { return gender; }
     public void setGender(String gender) { this.gender = gender; }
+    
+    public boolean isDeleted() { return deleted; }
+    public void setDeleted(boolean deleted) { this.deleted = deleted; }
 
 	@Override
 	public String toString() {

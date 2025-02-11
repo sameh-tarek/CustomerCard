@@ -38,7 +38,7 @@ public class CustomerCardMDB implements MessageListener {
         try {
             if (message instanceof ObjectMessage) {
                 ObjectMessage objectMessage = (ObjectMessage) message;
-                String operationType = message.getStringProperty("operationType"); 
+                OperationType operationType = OperationType.valueOf(message.getStringProperty("operationType")); 
                 String correlationId = message.getJMSCorrelationID();
                 CustomerCardRequestDTO request = (CustomerCardRequestDTO) objectMessage.getObject();
                 logger.info("Received message with operation: " + operationType);
@@ -52,17 +52,9 @@ public class CustomerCardMDB implements MessageListener {
         }
     }
 
-    private Object processRequest(String operationType, CustomerCardRequestDTO request) {
+    private Object processRequest(OperationType operationType, CustomerCardRequestDTO request) {
         try {
-            OperationType opType;
-            try {
-                opType = OperationType.valueOf(operationType);
-            } catch (IllegalArgumentException e) {
-                logger.warning("Invalid operation type received: " + operationType);
-                return "Invalid operation type: " + operationType;
-            }
-
-            switch (opType) {
+            switch (operationType) {
                 case CREATE:
                     return createCustomerCard(request);
                 case UPDATE:
@@ -122,20 +114,19 @@ public class CustomerCardMDB implements MessageListener {
 
     private String deleteCustomerCard(CustomerCardRequestDTO request) {
         try {
-            logger.info("Attempting to delete customer card: " + request.getCardNumber());
+            logger.info("Soft deleting customer card: " + request.getCardNumber());
             CustomerCard existingCard = customerCardDAO.findByCardNumber(request.getCardNumber());
             if (existingCard == null) {
-                logger.warning("Customer card not found: " + request.getCardNumber());
                 return "Customer card not found";
             }
-            customerCardDAO.delete(request.getCardNumber());
-            logger.info("Customer card deleted successfully: " + request.getCardNumber());
-            return "SUCCESS";
+            customerCardDAO.softDelete(request.getCardNumber());
+            return "Customer card soft deleted successfully";
         } catch (Exception e) {
-            logError("Error deleting customer from database", e);
+            logError("Error performing soft delete", e);
             return "ERROR";
         }
     }
+
     
     private CustomerCardResponseDTO getCustomerByCardNumber(CustomerCardRequestDTO request) {
         try {

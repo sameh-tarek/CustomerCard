@@ -15,8 +15,12 @@ import javax.naming.NamingException;
 @Stateless 
 public class JMSMessageReceiver implements MessageReceiver {
 
-    private QueueConnectionFactory qcf;
+	private QueueConnectionFactory qcf;
     private Queue responseQueue;
+
+    private QueueConnection qc;
+    private QueueSession qs;
+    private QueueReceiver receiver;
 
     public JMSMessageReceiver() {
         try {
@@ -30,10 +34,6 @@ public class JMSMessageReceiver implements MessageReceiver {
 
     @Override
     public Object receiveResponse(String correlationId) {
-        QueueConnection qc = null;
-        QueueSession qs = null;
-        QueueReceiver receiver = null;
-
         try {
             qc = qcf.createQueueConnection();
             qs = qc.createQueueSession(false, QueueSession.AUTO_ACKNOWLEDGE);
@@ -53,27 +53,17 @@ public class JMSMessageReceiver implements MessageReceiver {
             return null;
         } catch (JMSException e) {
             throw new RuntimeException("Failed to receive JMS message", e);
-        } catch (Exception e) {
-            throw new RuntimeException("Unexpected error occurred while receiving JMS message", e);
-        } finally {
-            closeResources(receiver, qs, qc);
         }
     }
 
-
-    private void closeResources(QueueReceiver receiver, QueueSession qs, QueueConnection qc) {
+    @Override
+    public void close() {
         try {
-            if (receiver != null) {
-                receiver.close();
-            }
-            if (qs != null) {
-                qs.close();
-            }
-            if (qc != null) {
-                qc.close();
-            }
+            if (receiver != null) receiver.close();
+            if (qs != null) qs.close();
+            if (qc != null) qc.close();
         } catch (JMSException e) {
-            throw new RuntimeException("Error while closing JMS resources", e);
+            System.err.println("Error while closing JMS resources: " + e.getMessage());
         }
     }
 }
